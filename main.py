@@ -2,6 +2,8 @@
 
 import argparse
 import asyncio
+import configparser
+from dataclasses import dataclass
 import logging
 import sys
 import time
@@ -13,9 +15,16 @@ import prometheus
 
 logger = logging.getLogger(__name__)
 
-# TODO: move this to a config file.
-HOME_ASSISTANT_USERNAME = "username"
-HOME_ASSISTANT_PASSWORD = "password"
+
+@dataclass(init=False)
+class Configuration:
+    hass_enabled: bool
+    hass_mqtt_address: str
+    hass_mqtt_username: str
+    hass_mqtt_password: str
+
+    def __init__(self):
+        self.hass_enabled = False
 
 
 def _sleep_forever() -> None:
@@ -27,19 +36,48 @@ def _sleep_forever() -> None:
             break
 
 
+def _read_config(filename: str) -> Configuration:
+    logger.info("reading %s", filename)
+
+    config = configparser.ConfigParser()
+    try:
+        config.read(filename)
+    except configparser.Error as e:
+        logger.critical('Could not read "%s": %s', filename, e)
+        raise
+
+    try:
+        ret = Configuration()
+
+        if "Home Assistant" in config:
+            hass = config["Home Assistant"]
+
+            ret.hass_enabled = hass.getboolean("Enabled", fallback=False)
+            ret.hass_mqtt_address = hass.get("MqttAddress")
+            ret.hass_mqtt_username = hass.get("MqttUsername")
+            ret.hass_mqtt_password = hass.get("MqttPassword")
+
+        return ret
+    except KeyError as e:
+        logging.critical('Required key missing in "%s": %s', filename, e)
+        raise
+
+
 def main(argv):
     """Main body of the program."""
     parser = argparse.ArgumentParser(prog=argv[0])
-    parser.add_argument("--port", help="HTTP server port", type=int, default=4480)
+    parser.add_argument(
+        "--port", help="HTTP server port [default: %(default)d]", type=int, default=4480
+    )
     parser.add_argument("--address", help="Address of paired EIAdv device")
     parser.add_argument(
-        "--homeassistant",
-        help="HomeAssistant MQTT broker to publish events to",
-        default="",
+        "--config",
+        help="Configuration file [default: %(default)s]",
+        default="config.ini",
     )
     parser.add_argument(
         "--log_level",
-        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR) [default: %(default)s]",
         type=str,
         default="INFO",
     )
@@ -54,17 +92,18 @@ def main(argv):
     args = parser.parse_args()
 
     logging.basicConfig(
-        format="%(asctime)s [%(name)10s %(thread)d] %(levelname)10s %(message)s",
+        format="%(asctime)s [%(name)14s %(thread)d] %(levelname)10s %(message)s",
         datefmt="%Y/%m/%d %H:%M:%S",
         level=level,
     )
 
     logger.info("Starting up on port=%s, EIAdv address=%s", args.port, args.address)
 
+    config = _read_config(args.config)
     em = emerald.EmeraldAdvisor(args.address)
     hass = None
 
-    if args.homeassistant:
+    if config.hass_enabled:
 
         def start_hass(mac: str, mfg: str, serial: str, fwver: str):
             logger.info(
@@ -75,9 +114,9 @@ def main(argv):
             )
 
             hass = homeassistant.HomeAssistantSensor(
-                args.homeassistant,
-                HOME_ASSISTANT_USERNAME,
-                HOME_ASSISTANT_PASSWORD,
+                config.hass_mqtt_address,
+                config.hass_mqtt_username,
+                config.hass_mqtt_password,
                 serial,
             )
             hass.connect()

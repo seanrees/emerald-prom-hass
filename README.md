@@ -20,6 +20,14 @@ This code is, at best, alpha quality.
 
 Bleak doesn't (easily) support pairing codes. On PiOS (at least), use `bluetoothctl` to pair.
 
+Occasionally, exiting the Python program can result in a _failure_ to disconnect from
+the device. If you see a bunch of `TimeoutError`'s, then try something like this:
+
+```
+% MAC_OF_DEVICE=30:1b:97:a:b:c"
+% echo "disconnect ${MAC_OF_DEVICE}" | bluetoothctl
+```
+
 ### Software Setup
 
 Recommend you setup a venv first.
@@ -32,16 +40,16 @@ Recommend you setup a venv first.
 
 Just: `./main.py --address MACOFYOURDEVICE` should do it.
 
-Flags:
-* `--homeassistant HOST` if you want to enable HomeAssistant (also edit main.py)
 
 ### HomeAssistant notes
 
 This integrates via HomeAssistant's [MQTT Discovery for Sensors](https://www.home-assistant.io/integrations/sensor.mqtt/).
 You'll need the MQTT add-on, and a username and password.
 
-You need to update main.py to set `HOME_ASSISTANT_USERNAME` and `HOME_ASSISTANT_PASSWORD` to
-connect to MQTT. Once connected, the sensor should show up on a like this:
+To use, produce a configuration file and set it via `--config` (default is `config.ini`). `config-sample.ini`
+should be a fairly self-explanatory example.
+
+Once connected, the sensor should show up on a like this:
 `homeassistant/sensor/emerald_electricity_advisor_YOURDEVICEID/energy_wh`
 
 ### Prometheus Notes
@@ -49,6 +57,8 @@ connect to MQTT. Once connected, the sensor should show up on a like this:
 The Prometheus exporter primarily exports in joules, as suggested by
 the [Metric and Label Naming](https://prometheus.io/docs/practices/naming/#base-units) guide
 for base units.
+
+The default port is `4480`, and can be overridden with `--port`. 
 
 The metrics of interest:
 1. `emerald_latest_joules` joules consumed in the last 30 seconds (if you sum these over an hour, you'll get KWh)

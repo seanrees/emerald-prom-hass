@@ -7,11 +7,6 @@ import paho.mqtt.client as mqtt
 logger = logging.getLogger(__name__)
 
 
-# This implements a total_increasing energy sensor. In truth, the sensor is a
-# measurement sensor -- but this doesn't play nicely with HomeAssistant's energy
-# dashboard.
-#
-# isoformat
 class HomeAssistantSensor:
     def __init__(self, mqtt_host: str, username: str, password: str, device_id: str):
         self._mqtt_host = mqtt_host
@@ -19,7 +14,6 @@ class HomeAssistantSensor:
         self._password = password
         self._device_id = device_id
         self._last_reset = datetime.datetime.now()
-        self._wh_accum = 0
         self._connected = False
         self._mqttc = None
 
@@ -55,10 +49,10 @@ class HomeAssistantSensor:
         def on_connect(client, userdata, flags, rc, properties):
             if rc == "Success":
                 self._connected = True
-                logger.info("Connected to MQTT broker %s", self._mqtt_host)
+                logger.info("connected to MQTT broker %s", self._mqtt_host)
 
                 logging.debug(
-                    "HomeAssistant discovery to %s: %s",
+                    "Home Assistant discovery to %s: %s",
                     self._get_discovery_topic(),
                     self._get_discovery_descriptor(),
                 )
@@ -68,7 +62,7 @@ class HomeAssistantSensor:
                 )
             else:
                 logger.error(
-                    "Could not connect to MQTT broker %s: %s", self._mqtt_host, rc
+                    "could not connect to MQTT broker %s: %s", self._mqtt_host, rc
                 )
 
         def on_publish(client, userdata, mid, rc, properties):
@@ -89,8 +83,6 @@ class HomeAssistantSensor:
 
     def update(self, energy_wh: int) -> None:
         if self._connected:
-            # self._wh_accum += energy_wh
-
             message = json.dumps(
                 {
                     "last_reset": datetime.datetime.now().isoformat(),
