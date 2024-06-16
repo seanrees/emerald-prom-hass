@@ -16,8 +16,9 @@ import prometheus
 logger = logging.getLogger(__name__)
 
 
-@dataclass(init=False)
+@dataclass()
 class Configuration:
+    emerald_address: str
     hass_enabled: bool
     hass_mqtt_address: str
     hass_mqtt_username: str
@@ -48,6 +49,11 @@ def _read_config(filename: str) -> Configuration:
 
     try:
         ret = Configuration()
+
+        if "Device" in config:
+            dev = config["Device"]
+
+            ret.emerald_address = dev.get("Address", fallback=None)
 
         if "Home Assistant" in config:
             hass = config["Home Assistant"]
@@ -100,7 +106,7 @@ def main(argv):
     logger.info("Starting up on port=%s, EIAdv address=%s", args.port, args.address)
 
     config = _read_config(args.config)
-    em = emerald.EmeraldAdvisor(args.address)
+    em = emerald.EmeraldAdvisor(args.address or config.emerald_address)
     hass = None
 
     if config.hass_enabled:

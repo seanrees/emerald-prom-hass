@@ -1,0 +1,99 @@
+load("@pip//:requirements.bzl", "requirement")
+load("@rules_pkg//:pkg.bzl", "pkg_deb", "pkg_tar")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+
+compile_pip_requirements(
+    name = "requirements",
+    src = "requirements.in",
+)
+
+py_binary(
+    name = "main",
+    srcs = ["main.py"],
+    deps = [
+        ":emerald",
+        ":homeassistant",
+        ":prometheus",
+    ],
+)
+
+py_library(
+    name = "emerald",
+    srcs = ["emerald.py"],
+    deps = [
+        requirement("bleak"),
+    ],
+)
+
+py_library(
+    name = "homeassistant",
+    srcs = ["homeassistant.py"],
+    deps = [
+        requirement("paho-mqtt"),
+    ],
+)
+
+py_library(
+    name = "prometheus",
+    srcs = ["prometheus.py"],
+    deps = [
+        requirement("prometheus_client"),
+    ],
+)
+
+pkg_tar(
+    name = "deb-bin",
+    # This depends on --build_python_zip.
+    srcs = [":main"],
+    mode = "0755",
+    package_dir = "/opt/emerald-prom-hass/bin",
+)
+
+pkg_tar(
+    name = "deb-config-sample",
+    srcs = ["config-sample.ini"],
+    mode = "0644",
+    package_dir = "/etc/emerald-prom-hass",
+)
+
+pkg_tar(
+    name = "deb-default",
+    srcs = ["debian/emerald-prom-hass"],
+    mode = "0644",
+    package_dir = "/etc/default",
+    strip_prefix = "debian",
+)
+
+pkg_tar(
+    name = "deb-service",
+    srcs = ["debian/emerald-prom-hass.service"],
+    mode = "0644",
+    package_dir = "/lib/systemd/system",
+    strip_prefix = "debian",
+)
+
+pkg_tar(
+    name = "debian-data",
+    deps = [
+        ":deb-bin",
+        ":deb-config-sample",
+        ":deb-default",
+        ":deb-service",
+    ],
+)
+
+pkg_deb(
+    name = "main-deb",
+    architecture = "all",
+    built_using = "bazel",
+    data = ":debian-data",
+    depends = [
+        "python3",
+    ],
+    description_file = "debian/description",
+    maintainer = "Sean Rees <sean at erifax.org>",
+    package = "emerald-prom-hass",
+    prerm = "debian/prerm",
+    version = "0.0.1",
+)
