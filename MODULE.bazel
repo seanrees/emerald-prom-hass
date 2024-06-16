@@ -1,0 +1,13 @@
+###############################################################################
+# Bazel now uses Bzlmod by default to manage external dependencies.
+# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+#
+# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+###############################################################################
+#
+# Note to self:
+# rules_python does not have feature parity with bzlmod. If used, it will
+# ship a full ISA-specific Python interpreter with a zip file, which
+# makes an 'any' arch Deb just not work.
+#
+# So, we use the old WORKSPACE model for now. -sr @ 20240616

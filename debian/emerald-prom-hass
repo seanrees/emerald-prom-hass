@@ -1,0 +1,1 @@
+ARGS="--config /etc/emerald-prom-hass/config.ini"

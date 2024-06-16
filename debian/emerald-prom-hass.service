@@ -1,0 +1,17 @@
+[Unit]
+Description=Emerald Electricity Advisor Exporter for Prometheus and Home Assistant
+Documentation=https://github.com/seanrees/emerald-prom-hass
+
+# DynamicUser (v.) User= would be preferred, but does not work for dbus.
+# Looks a lot like https://github.com/systemd/systemd/issues/22737.
+[Service]
+Restart=always
+User=nobody         
+EnvironmentFile=/etc/default/emerald-prom-hass
+ExecStart=python3 /opt/emerald-prom-hass/bin/main $ARGS
+ExecReload=/bin/kill -HUP $MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
