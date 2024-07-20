@@ -59,6 +59,11 @@ class EmeraldAdvisor:
         self._update_callbacks.add(fn)
 
     async def start(self, stop_event):
+        # Create a throwaway client to force a reset, just in case we've still
+        # got a partially established session.
+        throwaway_client = BleakClient(self._mac)
+        await throwaway_client.disconnect()
+
         async with BleakClient(self._mac) as client:
             device_info = client.services.get_service(SERVICE_DEVICE_INFO_UUID)
 
