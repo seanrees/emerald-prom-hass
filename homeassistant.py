@@ -3,6 +3,8 @@ import logging
 import json
 
 import paho.mqtt.client as mqtt
+import paho.mqtt.subscribe as subscribe
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,9 @@ class HomeAssistantSensor:
     def _get_state_topic(self):
         return f"homeassistant/sensor/emerald_electricity_advisor_{self._device_id}/energy_wh"
 
+    def _get_home_assistant_state_topic(self):
+        return "homeassistant/status"
+
     def _get_discovery_descriptor(self) -> str:
         return json.dumps(
             {
@@ -45,21 +50,25 @@ class HomeAssistantSensor:
             }
         )
 
+    def send_discovery(self):
+        logging.info(
+            "Home Assistant discovery to %s: %s",
+            self._get_discovery_topic(),
+            self._get_discovery_descriptor(),
+        )
+
+        self._mqttc.publish(
+            self._get_discovery_topic(), self._get_discovery_descriptor(), qos=0
+        )
+
     def connect(self) -> None:
         def on_connect(client, userdata, flags, rc, properties):
             if rc == "Success":
                 self._connected = True
                 logger.info("connected to MQTT broker %s", self._mqtt_host)
 
-                logging.debug(
-                    "Home Assistant discovery to %s: %s",
-                    self._get_discovery_topic(),
-                    self._get_discovery_descriptor(),
-                )
-
-                self._mqttc.publish(
-                    self._get_discovery_topic(), self._get_discovery_descriptor(), qos=0
-                )
+                self.send_discovery()
+                client.subscribe(self._get_home_assistant_state_topic(), qos=0)
             else:
                 logger.error(
                     "could not connect to MQTT broker %s: %s", self._mqtt_host, rc
@@ -68,13 +77,23 @@ class HomeAssistantSensor:
         def on_publish(client, userdata, mid, rc, properties):
             logger.debug("mid = %s, rc = %s", mid, rc)
 
+        def on_message(client, userdata, message):
+            payload = message.payload.decode("ascii")
+            if payload == "online":
+                logging.info("Home Assistant reports it's online, re-sending discovery")
+                self.send_discovery()
+            else:
+                logging.info("Home Assistant going %s", payload)
+
         mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         mqttc.on_connect = on_connect
+        mqttc.on_message = on_message
         mqttc.on_publish = on_publish
         mqttc.username_pw_set(username=self._username, password=self._password)
 
         mqttc.connect(self._mqtt_host)
         mqttc.loop_start()
+
         self._mqttc = mqttc
 
     def shutdown(self) -> None:
