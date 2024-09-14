@@ -18,7 +18,20 @@ This code is, at best, alpha quality.
 
 ### Bluetooth
 
-Bleak doesn't (easily) support pairing codes. On PiOS (at least), use `bluetoothctl` to pair.
+Bleak doesn't (easily) support pairing codes. On PiOS (at least), use `bluetoothctl` to pair (passkey is last 6 of serial #):
+
+```
+% bluetoothctl
+% [bluetooth]# scan le
+% [NEW] Device 30:1B:97:AA:BB:CC EIAdv 012345789
+% [bluetooth]# pair 30:1B:97:AA:BB:CC
+Attempting to pair with 30:1B:97:AA:BB:CC
+[CHG] Device 30:1B:97:AA:BB:CC Connected: yes
+Request passkey
+[agent] Enter passkey (number in 0-999999): 345789
+(a bunch of lines trimmed)
+[EIAdv 0123456789]# disconnect
+```
 
 Occasionally, exiting the Python program can result in a _failure_ to disconnect from
 the device. If you see a bunch of `TimeoutError`'s, then try something like this:
