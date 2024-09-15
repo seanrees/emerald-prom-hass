@@ -23,12 +23,12 @@ Bleak doesn't (easily) support pairing codes. On PiOS (at least), use `bluetooth
 ```
 % bluetoothctl
 % [bluetooth]# scan le
-% [NEW] Device 30:1B:97:AA:BB:CC EIAdv 012345789
-% [bluetooth]# pair 30:1B:97:AA:BB:CC
-Attempting to pair with 30:1B:97:AA:BB:CC
-[CHG] Device 30:1B:97:AA:BB:CC Connected: yes
+% [NEW] Device 30:1B:97:a:b:c EIAdv 0123456789
+% [bluetooth]# pair 30:1B:97:a:b:c
+Attempting to pair with 30:1B:97:a:b:c
+[CHG] Device 30:1B:97:a:b:c Connected: yes
 Request passkey
-[agent] Enter passkey (number in 0-999999): 345789
+[agent] Enter passkey (number in 0-999999): 456789
 (a bunch of lines trimmed)
 [EIAdv 0123456789]# disconnect
 ```
