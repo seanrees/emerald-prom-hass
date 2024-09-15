@@ -64,7 +64,7 @@ class EmeraldAdvisor:
         throwaway_client = BleakClient(self._mac)
         await throwaway_client.disconnect()
 
-        async with BleakClient(self._mac) as client:
+        async with BleakClient(self._mac, timeout=30.0) as client:
             device_info = client.services.get_service(SERVICE_DEVICE_INFO_UUID)
 
             mfg_char = device_info.get_characteristic(CHAR_DEVICE_MANUFACTURER_UUID)
