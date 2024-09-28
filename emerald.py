@@ -5,10 +5,12 @@
 #
 
 import asyncio
+import datetime
 import logging
 from typing import Callable, Optional
 
 from bleak import BleakClient
+from bleak.exc import BleakDBusError
 
 
 # Device Info
@@ -25,6 +27,10 @@ CHAR_TIME_WRITE_UUID = "00002b11-0000-1000-8000-00805f9b34fb"
 CMD_POWER_CONSUMPTION_30S = "0001020a06"
 CMD_RETURN_IMPULSE_RATE = "0001010602"
 
+# Battery
+SERVICE_BATTERY_UUID = "0000180f-0000-1000-8000-00805f9b34fb"
+CHAR_BATTERY_LEVEL_UUID = "00002a19-0000-1000-8000-00805f9b34fb"
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +43,8 @@ class EmeraldAdvisor:
 
         self._identify_callbacks = set()
         self._update_callbacks = set()
+        self._update_battery_callbacks = set()
+
 
     # An identification callback is triggered when we've identified the
     # device. Example signature:
@@ -58,7 +66,10 @@ class EmeraldAdvisor:
     def add_update_callback(self, fn: Callable[[int], None]) -> None:
         self._update_callbacks.add(fn)
 
-    async def start(self, stop_event):
+    def add_update_battery_callback(self, fn: Callable[[int], None]) -> None:
+        self._update_battery_callbacks.add(fn)
+
+    async def start(self):
         # Create a throwaway client to force a reset, just in case we've still
         # got a partially established session.
         throwaway_client = BleakClient(self._mac)
@@ -88,7 +99,7 @@ class EmeraldAdvisor:
                 mfg,
                 serial,
                 fw,
-                self._mac,
+                self._mac
             )
 
             timesvc = client.services.get_service(TIME_SERVICE_UUID)
@@ -146,9 +157,28 @@ class EmeraldAdvisor:
 
             await client.write_gatt_char(w_char, get_impulse_rate_cmd, response=True)
             await client.write_gatt_char(w_char, auto_upload_cmd, response=True)
+
             try:
-                await stop_event.wait()
+                bat_svc = client.services.get_service(SERVICE_BATTERY_UUID)
+                level_char = bat_svc.get_characteristic(CHAR_BATTERY_LEVEL_UUID)
+
+                while True:
+                    try:
+                        level = await client.read_gatt_char(level_char)
+                        battery = int.from_bytes(level)
+
+                        logger.info("device battery level is %d%%", battery)
+
+                        for fn in self._update_battery_callbacks:
+                            fn(battery)
+                    except BleakDBusError:
+                        logger.exception("emerald device disconnected")
+                        client = None
+                        break
+
+                    await asyncio.sleep(30)
             except asyncio.exceptions.CancelledError:
+                logger.info("cancelation requested, cleaning up")
+                await client.stop_notify(t_char)
                 pass
 
-            await client.stop_notify(t_char)

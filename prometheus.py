@@ -67,6 +67,9 @@ class PrometheusClient(object):
         self._last_sample_time = prometheus_client.Gauge(
             "emerald_last_sample_time", "Timestamp of last sample from sensor"
         )
+        self._battery_level = prometheus_client.Gauge(
+            "emerald_battery_percent", "Battery level of the Emerald device"
+        )
 
     def start(self):
         prometheus_client.start_http_server(self._port)
@@ -98,3 +101,6 @@ class PrometheusClient(object):
         self._joules_gauge.set(joules)
         self._watts_gauge.set(watts_avg)
         self._last_sample_time.set_to_current_time()
+
+    def update_battery(self, battery_level_pct: int) -> None:
+        self._battery_level.set(battery_level_pct)

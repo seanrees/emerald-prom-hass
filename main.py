@@ -28,15 +28,6 @@ class Configuration:
         self.hass_enabled = False
 
 
-def _sleep_forever() -> None:
-    """Sleeps the calling thread until a keyboard interrupt occurs."""
-    while True:
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            break
-
-
 def _read_config(filename: str) -> Configuration:
     logger.info("reading %s", filename)
 
@@ -135,17 +126,14 @@ def main(argv):
 
     em.add_identification_callback(prom.set_dev_info)
     em.add_update_callback(prom.update)
+    em.add_update_battery_callback(prom.update_battery)
 
     prom.start()
 
-    stop_event = asyncio.Event()
-    asyncio.run(em.start(stop_event))
-    _sleep_forever()
+    asyncio.run(em.start())
 
     if hass:
         hass.shutdown()
-
-    stop_event.set()
 
 
 if __name__ == "__main__":
